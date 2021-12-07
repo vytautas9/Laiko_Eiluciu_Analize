@@ -27,154 +27,12 @@ library(RColorBrewer)
 library(scales)
 library(forecast)
 library(zoo)
+library(tibble)
+library(tidyr)
+library(ggrepel)
 ```
 
-Naudosime JAV saldainių gaminimo duomenų imtį.
-```{r}
-data <- read.csv("candy_production.csv") %>% 
-   rename(data = observation_date, saldainiai = IPG3113N)
-```
-
-# Uzd 1
-Atlikite pirminę duomenų apžvalgą, pašalinkite išskirtis, atsižvelkite į praleistas reikšmes, ir pan.
-
-```{r}
-nrow(data)
-```
-
-Duomenų imtis sudaryta iš 548 stebėjimų.
-
-```{r}
-sum(is.na(data$saldainiai))
-```
-
-Duomenų imtyje neturime nei vienos praleistos reikšmės
-
-```{r}
-data %>% 
-   group_by(metai = year(as.Date(data))) %>% 
-   summarise(n = n())
-```
-
-Matom, jog turime duomenis nuo 1972 m. iki 2017 m. Visi metai turi po 12 stebėjimų (mėnesiniai duomenys), tik paskutiniai 2017 metai turi 8 stebėjimus.
-
-```{r}
-boxplot(data$saldainiai)
-```
-
-Stačiakampė diagrama neparodo, jog mūsų duomenyse būtų kokių nors tai išskirčių.
-
-```{r}
-summary(data)
-```
-
-Mažiausia reikšmė - 50.67, didžiausia - 139.92 Vidurkis ir mediana yra panašūs, atitinkamai 100.66 ir 102.28.
-
-# Uzd. 2
-## Laiko eilutė
-```{r}
-saldainiai.ts <- ts(data$saldainiai, start = c(1972, 1), frequency = 12)
-saldainiai.ts %>% 
-   autoplot() +
-   theme_minimal() +
-   labs(title = "JAV saldainių produkcija")
-```
-
-Duomenys akivaizdžiai turi sezoniškumą ir trendą
-
-## Autokoreliacinė funkcija
-```{r}
-Acf(saldainiai.ts)
-```
-
-Autokoreliacijos grafikas parodo, jog mūsų laiko eilutė nėra stacionari, kadangi ties visomis lag reikšmėmis viršijame 95% pasikliautinuosius intervalus, kurie nurodo, jog duomenys skiriasi nuo baltojo triukšmo.
-
-## Spektrinio tankio funkcija
-```{r}
-spectrum(saldainiai.ts)
-```
-
-Kadangi spektriniame grafike matome "pikus" ties 1, 2, 3 ir t.t. dažniais, galime daryti išvadą, jog mūsų duomenyse yra metinis sezoniškumas.
-
-Pasižiūrime, ar mūsų spėjimas yra teisingas:
-```{r}
-saldainiai.ts %>% 
-   window(start = c(1990, 1), end = c(1992, 12)) %>% 
-   autoplot() +
-   theme_minimal() +
-   labs(title = "JAV saldainių produkcija", subtitle = "1990 m. - 1992 m.")
-```
-
-Akivaizdžiai matome, jog mūsų spėjimas galimai yra tiesa, matosi, jog metai iš metų kartojasi ta pati tendencija.
-
-
-# Uzd 3
-```{r}
-saldainiai.ts %>%
-   stl(s.window = "periodic") %>%
-   autoplot(range.bars = F) + 
-   labs(x = "Data", 
-        title = "JAV saldainių produkcijos laiko eilutės dekompozicija",
-        subtitle = "Duomenys nuo 1972-01 mėn. iki 2017-08 mėn.") +
-   theme_minimal() +
-   theme(text = element_text(size = 18))
-```
-
-Kaip jau darėmė išvadą prieš tai, duomenyse matomas akivaizdus metinis sezoniškumas. Tą parodo ir dekompozicijos sezoniškumo grafikas.
-
-# Uzd. 4
-Prognozuosime 4 laiko momentus (4 mėnesius) taip užpildydami 2017 metus.
-## 4.1
-### Vidurkio metodas
-```{r}
-mean_ts <- meanf(saldainiai.ts, h = 4, level = c(90, 95, 99))
-
-accuracy(mean_ts)
-```
-
-```{r}
-plot_fx(
-   mean_ts,
-   year = 2017,
-   freq.place = 1,
-   date.breaks = "months",
-   date.format = "%Y%m",
-   x.title = "Mėnuo",
-   y.title = "Saldainių produkcija",
-   main.title = "JAV saldainių produkcijos prognozė Vidurkio metodu",
-   caption = "Modelis buvo apmokytas ant mėnesinių duomenų"
-)
-```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Function which will be used later for forecast plot
+Funkcija laiko eilutės prognozavimo atvaizdavimui, funkciją apsirašiau kitam modeliui, todėl paliksiu ją anglų kalba.
 ```{r}
 # Header ----
 # Details:     Function data inpuits are defined as follows:
@@ -280,7 +138,7 @@ plot_fx <- function(fx.dat,
       len.x <- length(original.ts)
       len.y <- length(forecast.ts.mean)
       
-      sub.title <- paste0("Showing actual data from ", min(original.dates), " - ", max(original.dates), " and forecast for ", min(forecast.dates), " - ", max(forecast.dates))
+      sub.title <- paste0("Faktiniai duomenys rodomi nuo ", format(as.Date(min(original.dates)), format = "%Y-%m"), " - ", format(as.Date(max(original.dates)), format = "%Y-%m"), " ir prognozė nuo ", format(as.Date(min(forecast.dates)), format = "%Y-%m"), " - ", format(as.Date(max(forecast.dates)), format = "%Y-%m"))
 
      df <- data.frame(
             date = as.Date(c(original.dates, forecast.dates)),
@@ -297,23 +155,23 @@ plot_fx <- function(fx.dat,
 
      # plot training, fitted and forecast data
      ggplot(df,  aes(date, x)) +
-          geom_line(aes(colour = "Training")) +
-          geom_line(data = df, aes(date, fitted, colour = "Fitted"), size = 0.75) +
+          geom_line(aes(colour = "Faktiniai")) +
+          geom_line(data = df, aes(date, fitted, colour = "Modelio faktiniai"), size = 0.75) +
           geom_ribbon(data = df, aes(date, ymin = lo.99, ymax = up.99, fill = "99%")) +
           geom_ribbon(data = df, aes(date, ymin = lo.95, ymax = up.95, fill = "95%")) +
           geom_ribbon(data = df, aes(date, ymin = lo.80, ymax = up.80, fill = "80%")) +
-          geom_line(data = df, aes(date, forecast, colour = "Forecast"), size = 0.75) +
-          geom_point(data = df, aes(date, forecast, colour = "Forecast"), size = 1) +
+          geom_line(data = df, aes(date, forecast, colour = "Prognozė"), size = 0.75) +
+          geom_point(data = df, aes(date, forecast, colour = "Prognozė"), size = 1) +
           geom_point(size = 1) +
           scale_x_date(breaks = seq(df$date[1], df$date[length(df$date)],
                                     by = date.breaks),
                        date_labels = date.format) +
-          scale_colour_manual(name = "Model Data",
-                              values = c("Training" = line.cols[1],
-                                         "Fitted" = line.cols[2],
-                                         "Forecast" = line.cols[3]),
-                              breaks = c("Training", "Fitted", "Forecast")) +
-          scale_fill_manual(name = "Forecast Intervals",
+          scale_colour_manual(name = "Modelis",
+                              values = c("Faktiniai" = line.cols[1],
+                                         "Modelio faktiniai" = line.cols[2],
+                                         "Prognozė" = line.cols[3]),
+                              breaks = c("Faktiniai", "Modelio faktiniai", "Prognozė")) +
+          scale_fill_manual(name = "Prognozės PI",
                             values = c("99%" = shade.cols[1], "95%" = shade.cols[2],
                                        "80%" = shade.cols[3])) +
           guides(colour = guide_legend(order = 1), fill = guide_legend(order = 2)) +
@@ -324,6 +182,405 @@ plot_fx <- function(fx.dat,
                y = y.title) +
           theme.fxdat
 }
+```
+
+Naudosime JAV saldainių gaminimo duomenų imtį.
+```{r}
+data <- read.csv("candy_production.csv") %>% 
+   rename(data = observation_date, saldainiai = IPG3113N)
+```
+
+# Uzd 1
+Atlikite pirminę duomenų apžvalgą, pašalinkite išskirtis, atsižvelkite į praleistas reikšmes, ir pan.
+
+```{r}
+nrow(data)
+```
+
+Duomenų imtis sudaryta iš 548 stebėjimų.
+
+```{r}
+sum(is.na(data$saldainiai))
+```
+
+Duomenų imtyje neturime nei vienos praleistos reikšmės
+
+```{r}
+data %>% 
+   group_by(metai = year(as.Date(data))) %>% 
+   summarise(n = n())
+```
+
+Matom, jog turime duomenis nuo 1972 m. iki 2017 m. Visi metai turi po 12 stebėjimų (mėnesiniai duomenys), tik paskutiniai 2017 metai turi 8 stebėjimus.
+
+```{r}
+boxplot(data$saldainiai)
+```
+
+Stačiakampė diagrama neparodo, jog mūsų duomenyse būtų kokių nors tai išskirčių.
+
+```{r}
+summary(data)
+```
+
+Mažiausia reikšmė - 50.67, didžiausia - 139.92 Vidurkis ir mediana yra panašūs, atitinkamai 100.66 ir 102.28.
+
+# Uzd. 2
+## Laiko eilutė
+```{r}
+saldainiai.ts <- ts(data$saldainiai, start = c(1972, 1), frequency = 12)
+saldainiai.ts %>% 
+   autoplot() +
+   theme_minimal() +
+   labs(title = "JAV saldainių produkcija")
+```
+
+Duomenys akivaizdžiai turi sezoniškumą ir trendą
+
+## Autokoreliacinė funkcija
+```{r}
+Acf(saldainiai.ts)
+```
+
+Autokoreliacijos grafikas parodo, jog mūsų laiko eilutė nėra stacionari, kadangi ties visomis lag reikšmėmis viršijame 95% pasikliautinuosius intervalus, kurie nurodo, jog duomenys skiriasi nuo baltojo triukšmo.
+
+## Spektrinio tankio funkcija
+```{r}
+spectrum(saldainiai.ts)
+```
+
+Kadangi spektriniame grafike matome "pikus" ties 1, 2, 3 ir t.t. dažniais, galime daryti išvadą, jog mūsų duomenyse yra metinis sezoniškumas.
+
+Pasižiūrime, ar mūsų spėjimas yra teisingas:
+```{r}
+saldainiai.ts %>% 
+   window(start = c(1990, 1), end = c(1992, 12)) %>% 
+   autoplot() +
+   theme_minimal() +
+   labs(title = "JAV saldainių produkcija", subtitle = "1990 m. - 1992 m.")
+```
+
+Akivaizdžiai matome, jog mūsų spėjimas galimai yra tiesa, matosi, jog metai iš metų kartojasi ta pati tendencija.
+
+
+# Uzd 3
+```{r}
+saldainiai.ts %>%
+   stl(s.window = "periodic") %>%
+   autoplot(range.bars = F) + 
+   labs(x = "Data", 
+        title = "JAV saldainių produkcijos laiko eilutės dekompozicija",
+        subtitle = "Duomenys nuo 1972-01 mėn. iki 2017-08 mėn.") +
+   theme_minimal() +
+   theme(text = element_text(size = 18))
+```
+
+Kaip jau darėmė išvadą prieš tai, duomenyse matomas akivaizdus metinis sezoniškumas. Tą parodo ir dekompozicijos sezoniškumo grafikas.
+
+# Uzd. 4
+Prognozuosime 4 laiko momentus (4 mėnesius) taip užpildydami 2017 metus.
+
+## 4.1
+### Vidurkio metodas
+```{r}
+mean_ts <- meanf(saldainiai.ts, h = 24, level = c(90, 95, 99))
+
+summary(mean_ts)
+
+accuracy(mean_ts)
+```
+
+```{r}
+plot_fx(
+   mean_ts,
+   year = 1980,
+   freq.place = 1,
+   date.breaks = "4 years",
+   date.format = "%Y",
+   x.title = "Mėnuo",
+   y.title = "Saldainių produkcija",
+   main.title = "JAV saldainių produkcijos prognozė Vidurkio metodu",
+   caption = "Modelis buvo apmokytas ant mėnesinių duomenų"
+)
+```
+
+### Naivusis metodas
+```{r}
+naive_ts <- naive(saldainiai.ts, h = 24, level = c(90, 95, 99))
+
+summary(naive_ts)
+
+accuracy(naive_ts)
+```
+
+```{r}
+plot_fx(
+   naive_ts,
+   year = 2010,
+   freq.place = 1,
+   date.breaks = "years",
+   date.format = "%Y",
+   x.title = "Mėnuo",
+   y.title = "Saldainių produkcija",
+   main.title = "JAV saldainių produkcijos prognozė Naiviuoju metodu",
+   caption = "Modelis buvo apmokytas ant mėnesinių duomenų"
+)
+```
+
+### Sezoninis naivusis metodas
+```{r}
+snaive_ts <- snaive(saldainiai.ts, h = 24, level = c(90, 95, 99))
+
+summary(snaive_ts)
+
+accuracy(snaive_ts)
+```
+
+```{r}
+plot_fx(
+   snaive_ts,
+   year = 2010,
+   freq.place = 1,
+   date.breaks = "years",
+   date.format = "%Y",
+   x.title = "Mėnuo",
+   y.title = "Saldainių produkcija",
+   main.title = "JAV saldainių produkcijos prognozė Naiviuoju metodu",
+   caption = "Modelis buvo apmokytas ant mėnesinių duomenų"
+)
+```
+
+## 4.2
+### Paprastasis eksponentinis glodinimas
+```{r}
+ses_ts <- ses(saldainiai.ts, h = 24, level = c(90, 95, 99))
+
+summary(ses_ts)
+
+accuracy(ses_ts)
+```
+
+```{r}
+plot_fx(
+   ses_ts,
+   year = 2010,
+   freq.place = 1,
+   date.breaks = "years",
+   date.format = "%Y",
+   x.title = "Mėnuo",
+   y.title = "Saldainių produkcija",
+   main.title = "JAV saldainių produkcijos prognozė Naiviuoju metodu",
+   caption = "Modelis buvo apmokytas ant mėnesinių duomenų"
+)
+```
+
+### Dvigubas eksponentinis glodinimas
+```{r}
+holt_ts <- holt(saldainiai.ts, h = 24, level = c(90, 95, 99))
+
+summary(holt_ts)
+
+accuracy(holt_ts)
+```
+
+```{r}
+plot_fx(
+   holt_ts,
+   year = 2010,
+   freq.place = 1,
+   date.breaks = "years",
+   date.format = "%Y",
+   x.title = "Mėnuo",
+   y.title = "Saldainių produkcija",
+   main.title = "JAV saldainių produkcijos prognozė Naiviuoju metodu",
+   caption = "Modelis buvo apmokytas ant mėnesinių duomenų"
+)
+```
+
+### Holt-Winters sezoninis
+```{r}
+holtwinters_ts <- hw(saldainiai.ts, h = 24, level = c(90, 95, 99))
+
+summary(holtwinters_ts)
+
+accuracy(holtwinters_ts)
+```
+
+```{r}
+plot_fx(
+   holtwinters_ts,
+   year = 2010,
+   freq.place = 1,
+   date.breaks = "years",
+   date.format = "%Y",
+   x.title = "Mėnuo",
+   y.title = "Saldainių produkcija",
+   main.title = "JAV saldainių produkcijos prognozė Naiviuoju metodu",
+   caption = "Modelis buvo apmokytas ant mėnesinių duomenų"
+)
+```
+
+### ETS
+```{r}
+ets_ts <- forecast(ets(saldainiai.ts), h = 24, level = c(90, 95, 99))
+
+summary(ets_ts)
+
+accuracy(ets_ts)
+```
+
+```{r}
+plot_fx(
+   ets_ts,
+   year = 2010,
+   freq.place = 1,
+   date.breaks = "years",
+   date.format = "%Y",
+   x.title = "Mėnuo",
+   y.title = "Saldainių produkcija",
+   main.title = "JAV saldainių produkcijos prognozė Naiviuoju metodu",
+   caption = "Modelis buvo apmokytas ant mėnesinių duomenų"
+)
+```
+
+## 4.3
+### ARIMA
+```{r}
+arima <- auto.arima(saldainiai.ts, seasonal = FALSE)
+
+arima_ts <- forecast(arima, h = 24, level = c(90, 95, 99))
+
+summary(arima_ts)
+
+accuracy(arima_ts)
+```
+
+```{r}
+plot_fx(
+   arima_ts,
+   year = 2010,
+   freq.place = 1,
+   date.breaks = "years",
+   date.format = "%Y",
+   x.title = "Mėnuo",
+   y.title = "Saldainių produkcija",
+   main.title = "JAV saldainių produkcijos prognozė Naiviuoju metodu",
+   caption = "Modelis buvo apmokytas ant mėnesinių duomenų"
+)
+```
+
+### SARIMA
+```{r}
+sarima <- auto.arima(saldainiai.ts, seasonal = TRUE)
+
+sarima_ts <- forecast(sarima, h = 24, level = c(90, 95, 99))
+
+summary(sarima_ts)
+
+accuracy(sarima_ts)
+```
+
+```{r}
+plot_fx(
+   sarima_ts,
+   year = 2010,
+   freq.place = 1,
+   date.breaks = "years",
+   date.format = "%Y",
+   x.title = "Mėnuo",
+   y.title = "Saldainių produkcija",
+   main.title = "JAV saldainių produkcijos prognozė Naiviuoju metodu",
+   caption = "Modelis buvo apmokytas ant mėnesinių duomenų"
+)
+```
+
+# 5
+???????????????????
+
+# 6
+Išskaidom laiko eilutę į apmokymo ir testavimo imtis
+```{r}
+apmokymo <- window(saldainiai.ts, start = c(1972,1), end = c(2009,12))
+testavimo <- window(saldainiai.ts, start = c(2010,1))
+```
+
+Apmokom visus metodus su apmokymo imtimi
+```{r}
+mean_ts_apmokymo <- meanf(apmokymo, h = 24, level = c(90, 95, 99))
+naive_ts_apmokymo <- naive(apmokymo, h = 24, level = c(90, 95, 99))
+snaive_ts_apmokymo <- snaive(apmokymo, h = 24, level = c(90, 95, 99))
+ses_ts_apmokymo <- ses(apmokymo, h = 24, level = c(90, 95, 99))
+holt_ts_apmokymo <- holt(apmokymo, h = 24, level = c(90, 95, 99))
+holtwinters_ts_apmokymo <- hw(apmokymo, h = 24, level = c(90, 95, 99))
+ets_ts_apmokymo <- forecast(ets(apmokymo), h = 24, level = c(90, 95, 99))
+
+arima_apmokymo <- auto.arima(apmokymo, seasonal = FALSE)
+arima_ts_apmokymo <- forecast(arima_apmokymo, h = 24, level = c(90, 95, 99))
+
+sarima_apmokymo <- auto.arima(apmokymo, seasonal = TRUE)
+sarima_ts_apmokymo <- forecast(sarima_apmokymo, h = 24, level = c(90, 95, 99))
+```
+
+Apsirašom apmokytus modelius į vieną list'ą
+```{r}
+modeliai <- list(
+   mean = mean_ts_apmokymo,
+   naive = naive_ts_apmokymo,
+   snaive = snaive_ts_apmokymo,
+   ses = ses_ts_apmokymo,
+   holt = holt_ts_apmokymo,
+   holtwinters = holtwinters_ts_apmokymo,
+   ets = ets_ts_apmokymo,
+   arima = arima_ts_apmokymo,
+   sarima = sarima_ts_apmokymo
+)
+```
+
+Gaunam tikslumo matus apmokymo ir testavimo imčiai
+```{r}
+accuracy_apmokymo <- lapply(modeliai, accuracy)
+accuracy_apmokymo  <- do.call(rbind.data.frame, accuracy_apmokymo) %>% 
+   rownames_to_column("Metodas") %>% 
+   select(Metodas, MAE)
+   
+
+accuracy_testavimo <- lapply(modeliai, accuracy, test = testavimo)
+accuracy_testavimo <- do.call(rbind.data.frame, accuracy_testavimo) %>% 
+   rownames_to_column("Metodas") %>% 
+   select(Metodas, MAE)
+```
+
+```{r}
+tikslumai <- accuracy_apmokymo %>% 
+   left_join(accuracy_testavimo, by = c("Metodas"), suffix = c("_apmokymo", "_testavimo"))
+```
+
+```{r}
+tikslumai %>% 
+   ggplot(aes(x = MAE_apmokymo, y = MAE_testavimo, color = Metodas, label = Metodas)) +
+   geom_point(size = 3) +
+   geom_label_repel(aes(label = paste0(Metodas, " (", round(MAE_apmokymo, 1), " | ", round(MAE_testavimo, 1), ")")),
+                  box.padding   = 0.35, 
+                  point.padding = 0.5,
+                  segment.color = 'grey50') +
+   theme_minimal() +
+   labs(x = "Apmokymo imties MAE",
+        y = "Testavimo imties MAE")
+```
+
+
+
+
+
+
+
+
+
+
+```{r}
+checkresiduals(mean_ts_apmokymo)
+
+checkresiduals(sarima_ts_apmokymo)
 ```
 
 
@@ -345,4 +602,4 @@ plot_fx <- function(fx.dat,
 
 https://www.kaggle.com/goldens/candy-production-time-series-analysis
 https://www.kaggle.com/grosvenpaul/eda-and-time-series-modeling
-
+https://otexts.com/fpp2/accuracy.html
