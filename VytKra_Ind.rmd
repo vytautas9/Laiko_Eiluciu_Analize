@@ -54,11 +54,11 @@ Funkcija laiko eilutės prognozavimo atvaizdavimui, funkciją apsirašiau kitam 
 
 # theme for forecast data objects
 theme.fxdat <- theme_gdocs() +
-     theme(plot.title = element_text(size = 15),
-           plot.subtitle = element_text(size = 11),
+     theme(plot.title = element_text(size = 20),
+           plot.subtitle = element_text(size = 14),
            plot.caption = element_text(size = 9, hjust = 0, vjust = 0, colour = "grey50"),
-           axis.title.y = element_text(face = "bold", color = "gray30"),
-           axis.title.x = element_text(face = "bold", color = "gray30", vjust = -1),
+           axis.title.y = element_text(face = "bold", color = "gray30", size = 14),
+           axis.title.x = element_text(face = "bold", color = "gray30", size = 14, vjust = -1),
            panel.background = element_rect(fill = "grey95", colour = "grey75"),
            panel.border = element_rect(colour = "grey75"),
            panel.grid.major.y = element_line(colour = "white"),
@@ -67,7 +67,10 @@ theme.fxdat <- theme_gdocs() +
            panel.grid.minor.x = element_line(colour = "white", linetype = "dotted"),
            strip.background = element_rect(size = 1, fill = "white", colour = "grey75"),
            strip.text.y = element_text(face = "bold"),
-           axis.line = element_line(colour = "grey75"))
+           axis.line = element_line(colour = "grey75"),
+           axis.text = element_text(size = 14),
+           legend.text = element_text(size = 14),
+           legend.title = element_text(size = 14))
 
 # function for using ggplot2 for forecast objects
 plot_fx <- function(fx.dat,
@@ -190,7 +193,7 @@ data <- read.csv("candy_production.csv") %>%
    rename(data = observation_date, saldainiai = IPG3113N)
 ```
 
-# Uzd 1
+# Užd. 1
 Atlikite pirminę duomenų apžvalgą, pašalinkite išskirtis, atsižvelkite į praleistas reikšmes, ir pan.
 
 ```{r}
@@ -214,7 +217,9 @@ data %>%
 Matom, jog turime duomenis nuo 1972 m. iki 2017 m. Visi metai turi po 12 stebėjimų (mėnesiniai duomenys), tik paskutiniai 2017 metai turi 8 stebėjimus.
 
 ```{r}
+png(file = "Uzd1_boxplot.png", width = 1200, height = 850)
 boxplot(data$saldainiai)
+dev.off()
 ```
 
 Stačiakampė diagrama neparodo, jog mūsų duomenyse būtų kokių nors tai išskirčių.
@@ -225,28 +230,38 @@ summary(data)
 
 Mažiausia reikšmė - 50.67, didžiausia - 139.92 Vidurkis ir mediana yra panašūs, atitinkamai 100.66 ir 102.28.
 
-# Uzd. 2
+# Užd. 2
 ## Laiko eilutė
 ```{r}
 saldainiai.ts <- ts(data$saldainiai, start = c(1972, 1), frequency = 12)
 saldainiai.ts %>% 
    autoplot() +
    theme_minimal() +
-   labs(title = "JAV saldainių produkcija")
+   labs(title = "JAV saldainių produkcijos laiko eilutė",
+        x = "Metai",
+        y = "Salainių produkcija") +
+   theme(title = element_text(size = 20),
+         axis.text = element_text(size = 14))
+
+ggsave(filename = "Uzd2_LaikoEilute.png", width = 14, height = 7, units = "in", bg = "white")
 ```
 
 Duomenys akivaizdžiai turi sezoniškumą ir trendą
 
 ## Autokoreliacinė funkcija
 ```{r}
+png(file = "Uzd2_Autokoreliacine.png", width = 1200, height = 850)
 Acf(saldainiai.ts)
+dev.off()
 ```
 
 Autokoreliacijos grafikas parodo, jog mūsų laiko eilutė nėra stacionari, kadangi ties visomis lag reikšmėmis viršijame 95% pasikliautinuosius intervalus, kurie nurodo, jog duomenys skiriasi nuo baltojo triukšmo.
 
 ## Spektrinio tankio funkcija
 ```{r}
+png(file = "Uzd2_SpektrinioTankio.png", width = 1200, height = 850)
 spectrum(saldainiai.ts)
+dev.off()
 ```
 
 Kadangi spektriniame grafike matome "pikus" ties 1, 2, 3 ir t.t. dažniais, galime daryti išvadą, jog mūsų duomenyse yra metinis sezoniškumas.
@@ -257,13 +272,19 @@ saldainiai.ts %>%
    window(start = c(1990, 1), end = c(1992, 12)) %>% 
    autoplot() +
    theme_minimal() +
-   labs(title = "JAV saldainių produkcija", subtitle = "1990 m. - 1992 m.")
+   labs(title = "JAV saldainių produkcija", 
+        subtitle = "1990 m. - 1992 m.",
+        x = "Metai") +
+   theme(title = element_text(size = 20),
+         axis.text = element_text(size = 14))
+
+ggsave(filename = "Uzd2_LaikoEilutesSezoniskumas.png", width = 14, height = 7, units = "in", bg = "white")
 ```
 
 Akivaizdžiai matome, jog mūsų spėjimas galimai yra tiesa, matosi, jog metai iš metų kartojasi ta pati tendencija.
 
 
-# Uzd 3
+# Užd. 3
 ```{r}
 saldainiai.ts %>%
    stl(s.window = "periodic") %>%
@@ -273,23 +294,24 @@ saldainiai.ts %>%
         subtitle = "Duomenys nuo 1972-01 mėn. iki 2017-08 mėn.") +
    theme_minimal() +
    theme(text = element_text(size = 18))
+
+ggsave(filename = "Uzd3_LaikoEilutesDekompozicija.png", width = 14, height = 7, units = "in", bg = "white")
 ```
 
 Kaip jau darėmė išvadą prieš tai, duomenyse matomas akivaizdus metinis sezoniškumas. Tą parodo ir dekompozicijos sezoniškumo grafikas.
 
-# Uzd. 4
-Prognozuosime 4 laiko momentus (4 mėnesius) taip užpildydami 2017 metus.
+# Užd. 4
+Prognozuosime 24 laiko momentus (24 mėnesius).
 
 ## 4.1
 ### Vidurkio metodas
 ```{r}
 mean_ts <- meanf(saldainiai.ts, h = 24, level = c(90, 95, 99))
-
-summary(mean_ts)
-
-accuracy(mean_ts)
 ```
 
+Gauname vidurkio modelį su vidurkiu: `r summary(mean_ts)$model$mu`
+
+Pasižiūrim, kaip atrodo prognozė:
 ```{r}
 plot_fx(
    mean_ts,
@@ -297,20 +319,20 @@ plot_fx(
    freq.place = 1,
    date.breaks = "4 years",
    date.format = "%Y",
-   x.title = "Mėnuo",
+   x.title = "Metai",
    y.title = "Saldainių produkcija",
    main.title = "JAV saldainių produkcijos prognozė Vidurkio metodu",
    caption = "Modelis buvo apmokytas ant mėnesinių duomenų"
 )
+
+ggsave(filename = "Uzd41_VidurkioMetodas.png", width = 14, height = 7, units = "in", bg = "white")
 ```
+
+Kaip matom, modelio prognozė daug ko nesako, kadangi yra paimamas visos laiko eilutės vidurkis. Taip pat, pasikliautinieji intervalai apima labai didelį plotį.
 
 ### Naivusis metodas
 ```{r}
 naive_ts <- naive(saldainiai.ts, h = 24, level = c(90, 95, 99))
-
-summary(naive_ts)
-
-accuracy(naive_ts)
 ```
 
 ```{r}
@@ -320,20 +342,20 @@ plot_fx(
    freq.place = 1,
    date.breaks = "years",
    date.format = "%Y",
-   x.title = "Mėnuo",
+   x.title = "Metai",
    y.title = "Saldainių produkcija",
    main.title = "JAV saldainių produkcijos prognozė Naiviuoju metodu",
    caption = "Modelis buvo apmokytas ant mėnesinių duomenų"
 )
+
+ggsave(filename = "Uzd41_NaivusisMetodas.png", width = 14, height = 7, units = "in", bg = "white")
 ```
+
+Naiviojo metodo prognozė yra tiesiog paskutinė laiko eilutės reikšmė, todėl tolimame horizonte ši prognozė nebus tikslinga, tą parodo ir platėjantis pasikliautinasis intervlas.
 
 ### Sezoninis naivusis metodas
 ```{r}
 snaive_ts <- snaive(saldainiai.ts, h = 24, level = c(90, 95, 99))
-
-summary(snaive_ts)
-
-accuracy(snaive_ts)
 ```
 
 ```{r}
@@ -343,22 +365,26 @@ plot_fx(
    freq.place = 1,
    date.breaks = "years",
    date.format = "%Y",
-   x.title = "Mėnuo",
+   x.title = "Metai",
    y.title = "Saldainių produkcija",
-   main.title = "JAV saldainių produkcijos prognozė Naiviuoju metodu",
+   main.title = "JAV saldainių produkcijos prognozė Sezoniniu Naiviuoju metodu",
    caption = "Modelis buvo apmokytas ant mėnesinių duomenų"
 )
+
+ggsave(filename = "Uzd41_SezoninisNaivusisMetodas.png", width = 14, height = 7, units = "in", bg = "white")
 ```
+
+Sezoninio naiviojo metodo prognozė galima laikyti daug tikslingesne, tačiau vėl gi, yra atkartojamas paskutinis "sezonas".
 
 ## 4.2
 ### Paprastasis eksponentinis glodinimas
 ```{r}
 ses_ts <- ses(saldainiai.ts, h = 24, level = c(90, 95, 99))
-
-summary(ses_ts)
-
-accuracy(ses_ts)
 ```
+
+Paprastojo eksponentinio glodinimo metodo alpha parametro reikšmė: `r summary(ses_ts)$model$par["alpha"]`, kadangi alpha parametras yra arti 1, todėl didžiausias svoris yra suteikiamas paskutinėms laiko eilutės reikšmėms ir metodas turėtų sutapti su naiviuoju metodu.
+
+Pradinio suglodintos laiko eilutės vidurkio lygis *l_0* - `r summary(ses_ts)$model$par["l"]`
 
 ```{r}
 plot_fx(
@@ -367,21 +393,23 @@ plot_fx(
    freq.place = 1,
    date.breaks = "years",
    date.format = "%Y",
-   x.title = "Mėnuo",
+   x.title = "Metai",
    y.title = "Saldainių produkcija",
-   main.title = "JAV saldainių produkcijos prognozė Naiviuoju metodu",
+   main.title = "JAV saldainių produkcijos prognozė Paprastuoju Eksponentiniu Glodinimu",
    caption = "Modelis buvo apmokytas ant mėnesinių duomenų"
 )
+
+ggsave(filename = "Uzd42_PaprastatisEksponentinisGlodinimas.png", width = 14, height = 7, units = "in", bg = "white")
 ```
+
+Matome, kad metodas sutampa su naiviuoju metodu.
 
 ### Dvigubas eksponentinis glodinimas
 ```{r}
 holt_ts <- holt(saldainiai.ts, h = 24, level = c(90, 95, 99))
-
-summary(holt_ts)
-
-accuracy(holt_ts)
 ```
+
+Dvigubo eksponentinio glodinimo metodo alpha parametras = `r summary(holt_ts)$model$par["alpha"]`, matom, jog alpha yra arti 1, todėl metodas vėl bus panašus į naivųjį metodą. Trendo glodinimo parametras beta = `r summary(holt_ts)$model$par["beta"]`. Pradinės sąlygos: *l_0* = `r summary(holt_ts)$model$par["l"]` ir *b_0* = `r summary(holt_ts)$model$par["b"]`.
 
 ```{r}
 plot_fx(
@@ -390,21 +418,23 @@ plot_fx(
    freq.place = 1,
    date.breaks = "years",
    date.format = "%Y",
-   x.title = "Mėnuo",
+   x.title = "Metai",
    y.title = "Saldainių produkcija",
-   main.title = "JAV saldainių produkcijos prognozė Naiviuoju metodu",
+   main.title = "JAV saldainių produkcijos prognozė Dvigubu Eksponentiniu Glodinimu",
    caption = "Modelis buvo apmokytas ant mėnesinių duomenų"
 )
+
+ggsave(filename = "Uzd42_DvigubasEksponentinisGoldinimas.png", width = 14, height = 7, units = "in", bg = "white")
 ```
+
+Vėlgi, matom jog metodas yra labai panašus į naivųjį metodą.
 
 ### Holt-Winters sezoninis
 ```{r}
 holtwinters_ts <- hw(saldainiai.ts, h = 24, level = c(90, 95, 99))
-
-summary(holtwinters_ts)
-
-accuracy(holtwinters_ts)
 ```
+
+Holt-Winters sezoninio metodo alpha parametras = `r summary(holtwinters_ts)$model$par["alpha"]`, matom, jog alpha nėra arti 1, todėl metodas neturėtų būti panašus į naivųjį metodą. Trendo glodinimo parametras beta = `r summary(holtwinters_ts)$model$par["beta"]`, parametro reikšmė yra gana maža, todėl ir prognozėje spartaus trendo nepamatysime. Sezoniškumo glodinimo parametras gamma = `r summary(holtwinters_ts)$model$par["gamma"]`.
 
 ```{r}
 plot_fx(
@@ -413,21 +443,23 @@ plot_fx(
    freq.place = 1,
    date.breaks = "years",
    date.format = "%Y",
-   x.title = "Mėnuo",
+   x.title = "Metai",
    y.title = "Saldainių produkcija",
-   main.title = "JAV saldainių produkcijos prognozė Naiviuoju metodu",
+   main.title = "JAV saldainių produkcijos prognozė Holt-Winters Sezoniniu metodu",
    caption = "Modelis buvo apmokytas ant mėnesinių duomenų"
 )
+
+ggsave(filename = "Uzd42_HoltWintersSezoninisMetodas.png", width = 14, height = 7, units = "in", bg = "white")
 ```
+
+Matome, jog holt-winters sezoninis metodas iš pirmo žvilgsnio visai neblogai prognozuoja (pateikia adekvatesnią prognozę atsižvelgiančią į sezoniškumą).
 
 ### ETS
 ```{r}
 ets_ts <- forecast(ets(saldainiai.ts), h = 24, level = c(90, 95, 99))
-
-summary(ets_ts)
-
-accuracy(ets_ts)
 ```
+
+ETS metodo parinkti tipai: paklaidos - `r summary(ets_ts)$model$components[1]`, trendo - `r summary(ets_ts)$model$components[2]`, sezoniškumo - `r summary(ets_ts)$model$components[3]`. Parametrų reikšmės: alpha = `r summary(ets_ts)$model$par["alpha"]`, gamma = `r summary(ets_ts)$model$par["gamma"]`, trendo komponentės neturime, todėl ir beta parametro neturime.
 
 ```{r}
 plot_fx(
@@ -436,12 +468,16 @@ plot_fx(
    freq.place = 1,
    date.breaks = "years",
    date.format = "%Y",
-   x.title = "Mėnuo",
+   x.title = "Metai",
    y.title = "Saldainių produkcija",
-   main.title = "JAV saldainių produkcijos prognozė Naiviuoju metodu",
+   main.title = "JAV saldainių produkcijos prognozė ETS metodu",
    caption = "Modelis buvo apmokytas ant mėnesinių duomenų"
 )
+
+ggsave(filename = "Uzd42_ETSMetodas.png", width = 14, height = 7, units = "in", bg = "white")
 ```
+
+Iš esmės, parinktas metodas sutampa su holt-winters metodu, kuriame mūsų trendo parametro reikšmė buvo parinkta labai maža.
 
 ## 4.3
 ### ARIMA
@@ -449,10 +485,11 @@ plot_fx(
 arima <- auto.arima(saldainiai.ts, seasonal = FALSE)
 
 arima_ts <- forecast(arima, h = 24, level = c(90, 95, 99))
+```
 
-summary(arima_ts)
-
-accuracy(arima_ts)
+Parinktas arima procesas: `r summary(arima_ts)$method` su eilėmis:
+```{r}
+summary(arima_ts)$model$coef
 ```
 
 ```{r}
@@ -462,22 +499,27 @@ plot_fx(
    freq.place = 1,
    date.breaks = "years",
    date.format = "%Y",
-   x.title = "Mėnuo",
+   x.title = "Metai",
    y.title = "Saldainių produkcija",
-   main.title = "JAV saldainių produkcijos prognozė Naiviuoju metodu",
+   main.title = "JAV saldainių produkcijos prognozė ARIMA metodu",
    caption = "Modelis buvo apmokytas ant mėnesinių duomenų"
 )
+
+ggsave(filename = "Uzd43_ArimaMetodas.png", width = 14, height = 7, units = "in", bg = "white")
 ```
+
+Matom, jog paprastas arima metodas sugebėjo aptikti sezoniškumą.
 
 ### SARIMA
 ```{r}
 sarima <- auto.arima(saldainiai.ts, seasonal = TRUE)
 
 sarima_ts <- forecast(sarima, h = 24, level = c(90, 95, 99))
+```
 
-summary(sarima_ts)
-
-accuracy(sarima_ts)
+Parinktas sarima procesas: `r summary(sarima_ts)$method` su eilėmis:
+```{r}
+summary(sarima_ts)$model$coef
 ```
 
 ```{r}
@@ -487,17 +529,45 @@ plot_fx(
    freq.place = 1,
    date.breaks = "years",
    date.format = "%Y",
-   x.title = "Mėnuo",
+   x.title = "Metai",
    y.title = "Saldainių produkcija",
-   main.title = "JAV saldainių produkcijos prognozė Naiviuoju metodu",
+   main.title = "JAV saldainių produkcijos prognozė SARIMA metodu",
    caption = "Modelis buvo apmokytas ant mėnesinių duomenų"
 )
+
+ggsave(filename = "Uzd43_SarimaMetodas.png", width = 14, height = 7, units = "in", bg = "white")
 ```
 
-# 5
-???????????????????
+Sarima metodas aptiko daug stipresnį sezoniškumą, taip pat pasikliautinieji intervalai yra žymiai siauresnis nei Arima metodo.
 
-# 6
+# Užd. 5
+## Neuroniniai tinklai
+```{r}
+nn <- nnetar(saldainiai.ts)
+
+nn_ts <- forecast(nn, h = 24)
+```
+
+Sukurtas neuroninis tinklas - `r summary(nn_ts)$method`, kur P = 1, vadinasi metodas aptiko sezoniškumą, p = 26 ir k = 14.
+
+Kadangi nnetar() funkcija neapskaičiuoja pasikliautinųjų intervalų, naudosime paprastą eilutės atvaizdavimą:
+```{r}
+nn_ts %>% 
+   autoplot() +
+   theme_minimal() +
+   labs(title = "JAV saldainių produkcijos prognozė Neuroninių Tinklų metodu", 
+        x = "Metai",
+        y = "Saldainių produkcija") +
+   theme(title = element_text(size = 20),
+         axis.text = element_text(size = 14))
+
+
+ggsave(filename = "Uzd5_NeuroniniuTinkluMetodas.png", width = 14, height = 7, units = "in", bg = "white")
+```
+
+Matom, jog neuroninių tinklu metodas aptiko tiek sezoniškumą, tiek trendą.
+
+# Užd. 6
 Išskaidom laiko eilutę į apmokymo ir testavimo imtis
 ```{r}
 apmokymo <- window(saldainiai.ts, start = c(1972,1), end = c(2009,12))
@@ -519,6 +589,9 @@ arima_ts_apmokymo <- forecast(arima_apmokymo, h = 24, level = c(90, 95, 99))
 
 sarima_apmokymo <- auto.arima(apmokymo, seasonal = TRUE)
 sarima_ts_apmokymo <- forecast(sarima_apmokymo, h = 24, level = c(90, 95, 99))
+
+nn_apmokymo <- nnetar(apmokymo)
+nn_ts_apmokymo <- forecast(nn_apmokymo, h = 24)
 ```
 
 Apsirašom apmokytus modelius į vieną list'ą
@@ -532,29 +605,23 @@ modeliai <- list(
    holtwinters = holtwinters_ts_apmokymo,
    ets = ets_ts_apmokymo,
    arima = arima_ts_apmokymo,
-   sarima = sarima_ts_apmokymo
+   sarima = sarima_ts_apmokymo,
+   neuroniniai_tinklai = nn_ts_apmokymo
 )
 ```
 
 Gaunam tikslumo matus apmokymo ir testavimo imčiai
 ```{r}
-accuracy_apmokymo <- lapply(modeliai, accuracy)
-accuracy_apmokymo  <- do.call(rbind.data.frame, accuracy_apmokymo) %>% 
+tikslumai <- lapply(modeliai, accuracy, x = testavimo)
+tikslumai <- do.call(rbind.data.frame, tikslumai) %>% 
    rownames_to_column("Metodas") %>% 
-   select(Metodas, MAE)
-   
-
-accuracy_testavimo <- lapply(modeliai, accuracy, test = testavimo)
-accuracy_testavimo <- do.call(rbind.data.frame, accuracy_testavimo) %>% 
-   rownames_to_column("Metodas") %>% 
-   select(Metodas, MAE)
+   select(Metodas, MAE) %>% 
+   separate(col = Metodas, into = c("Metodas", "Imtis"), sep = "\\.") %>% 
+   pivot_wider(names_from = Imtis, values_from = MAE) %>% 
+   rename(MAE_apmokymo = `Training set`, MAE_testavimo = `Test set`)
 ```
 
-```{r}
-tikslumai <- accuracy_apmokymo %>% 
-   left_join(accuracy_testavimo, by = c("Metodas"), suffix = c("_apmokymo", "_testavimo"))
-```
-
+Palyginam metodus:
 ```{r}
 tikslumai %>% 
    ggplot(aes(x = MAE_apmokymo, y = MAE_testavimo, color = Metodas, label = Metodas)) +
@@ -564,10 +631,27 @@ tikslumai %>%
                   point.padding = 0.5,
                   segment.color = 'grey50') +
    theme_minimal() +
-   labs(x = "Apmokymo imties MAE",
-        y = "Testavimo imties MAE")
+   labs(title = "Naudotų metodų palyginimas pagal MAE naudojant apmokymo ir testavimo imtis",
+        x = "Apmokymo imties MAE",
+        y = "Testavimo imties MAE") +
+   theme(title = element_text(size = 20),
+         text = element_text(size = 14)) +
+   expand_limits(x = 0, y = 0)
+
+ggsave(filename = "Uzd6_MetoduPalyginimas.png", width = 14, height = 7, units = "in", bg = "white")
 ```
 
+# Užd. 7
+```{r}
+h <- data.frame(matrix(NA, 1, 1))
+
+for(i in 1:length(testavimo)){
+   metodas_ts <- hw(apmokymo, h = i)
+   h[i] <- accuracy(metodas_ts, x = testavimo)[2,3]
+}
+
+h
+```
 
 
 
@@ -580,6 +664,7 @@ tikslumai %>%
 ```{r}
 checkresiduals(mean_ts_apmokymo)
 
+checkresiduals(sarima_ts_apmokymo)
 checkresiduals(sarima_ts_apmokymo)
 ```
 
