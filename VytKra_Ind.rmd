@@ -211,7 +211,13 @@ Duomenų imtyje neturime nei vienos praleistos reikšmės
 ```{r}
 data %>% 
    group_by(metai = year(as.Date(data))) %>% 
-   summarise(n = n())
+   summarise(n = n()) %>% 
+   head()
+
+data %>% 
+   group_by(metai = year(as.Date(data))) %>% 
+   summarise(n = n()) %>% 
+   tail()
 ```
 
 Matom, jog turime duomenis nuo 1972 m. iki 2017 m. Visi metai turi po 12 stebėjimų (mėnesiniai duomenys), tik paskutiniai 2017 metai turi 8 stebėjimus.
