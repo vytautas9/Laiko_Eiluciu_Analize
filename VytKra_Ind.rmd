@@ -649,48 +649,77 @@ ggsave(filename = "Uzd6_MetoduPalyginimas.png", width = 14, height = 7, units = 
 
 # Užd. 7
 ```{r}
-h <- data.frame(matrix(NA, 1, 1))
+h <- data.frame()
 
 for(i in 1:length(testavimo)){
-   metodas_ts <- hw(apmokymo, h = i)
-   h[i] <- accuracy(metodas_ts, x = testavimo)[2,3]
+   
+   mean_ts_horizontui <- meanf(apmokymo, h = i)
+   naive_ts_horizontui <- naive(apmokymo, h = i)
+   snaive_ts_horizontui <- snaive(apmokymo, h = i)
+   ses_ts_horizontui <- ses(apmokymo, h = i)
+   holt_ts_horizontui <- holt(apmokymo, h = i)
+   holtwinters_ts_horizontui <- hw(apmokymo, h = i)
+   ets_ts_horizontui <- forecast(ets(apmokymo), h = i)
+
+   arima_horizontui <- auto.arima(apmokymo, seasonal = FALSE)
+   arima_ts_horizontui <- forecast(arima_apmokymo, h = i)
+
+   sarima_horizontui <- auto.arima(apmokymo, seasonal = TRUE)
+   sarima_ts_horizontui <- forecast(sarima_horizontui, h = i)
+
+   nn_horizontui <- nnetar(apmokymo)
+   nn_ts_horizontui <- forecast(nn_horizontui, h = i)
+   
+   h <- h %>% 
+      bind_rows(
+         data.frame(
+            h = i,
+            mean = accuracy(mean_ts_horizontui, x = testavimo)[2,3],
+            naive = accuracy(naive_ts_horizontui, x = testavimo)[2,3],
+            snaive = accuracy(snaive_ts_horizontui, x = testavimo)[2,3],
+            ses = accuracy(ses_ts_horizontui, x = testavimo)[2,3],
+            holt = accuracy(holt_ts_horizontui, x = testavimo)[2,3],
+            holtwinters = accuracy(holtwinters_ts_horizontui, x = testavimo)[2,3],
+            ets = accuracy(ets_ts_horizontui, x = testavimo)[2,3],
+            arima = accuracy(arima_ts_horizontui, x = testavimo)[2,3],
+            sarima = accuracy(sarima_ts_horizontui, x = testavimo)[2,3],
+            neural_networks = accuracy(nn_ts_horizontui, x = testavimo)[2,3]
+         )
+      )
 }
-
-h
 ```
 
-
-
-
-
-
-
-
-
+Atvaizduojam modelių paklaidos priklausomybę nuo prognozavimo trukmės:
 ```{r}
-checkresiduals(mean_ts_apmokymo)
+h %>% 
+   pivot_longer(cols = c(-h), names_to = "Modelis", values_to = "MAE") %>% 
+   mutate(Paskutines_Reiksmes = case_when(
+      h == length(testavimo) ~ Modelis,
+      TRUE ~ ""
+   )) %>% 
+   ggplot(aes(x = h, y = MAE, color = Modelis)) +
+   geom_line() +
+   theme_minimal() +
+   labs(title = "Modelių paklaidos (MAE) priklausomybė nuo prognozės trukmės", 
+        x = "Prognozės trukmė",
+        y = "MAE") +
+   theme(title = element_text(size = 20),
+         axis.text = element_text(size = 14), legend.position = "none") +
+  geom_label_repel(aes(label = Paskutines_Reiksmes),
+                   nudge_x = 1,
+                   na.rm = TRUE)
+  #theme(legend.position = "none")
 
-checkresiduals(sarima_ts_apmokymo)
-checkresiduals(sarima_ts_apmokymo)
+ggsave(filename = "Uzd7_ModeliuPaklaidosPagalPrognTrukme.png", width = 14, height = 7, units = "in", bg = "white")
 ```
 
+Galim pastebėti įdomių tendencijų, pavyzdžiui, nors neuroninių tinklų metodas atrodė kaip tiksliausias modelis, jis, kaip matome nėra visiškai stabilus o ir ilguoju periodu jis tampa ne pačiu tiksliausiu. 
 
+ETS ir holt-winters metodai, kurie parodė neblogus rezultatus ir prieš tai, šioje analizėje atrodo kaip geriausi ir stabiliausi metodai, kurie nepriklausomai nuo prognozės trukmės, svyravimų paklaidose didelių neturi.
 
+Kita vertus, sarima modelis, parodęs irgi gerus tikslumus prieš tai, ilogose prognozėse atrodo visiškai praranda tikslumą. Tuo tarpu arima modelis atrodo stabiliau.
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+# Šaltiniai
 https://www.kaggle.com/goldens/candy-production-time-series-analysis
 https://www.kaggle.com/grosvenpaul/eda-and-time-series-modeling
 https://otexts.com/fpp2/accuracy.html
